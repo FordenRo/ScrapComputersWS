@@ -1,0 +1,27 @@
+{
+    "Lua.runtime.version": "Lua 5.1",
+    "Lua.workspace.library": [
+        "SC.lua",
+        "SM.lua",
+        "WS.lua"
+    ],
+    "editor.defaultFormatter": "JohnnyMorganz.stylua",
+    "Lua.diagnostics.groupSeverity": {
+        "unbalanced": "Error",
+        "strict": "Error",
+        "global": "Error"
+    },
+    "files.associations": {
+        "*.layout": "xml",
+        "*.json": "jsonc",
+        "*.shapeset": "jsonc",
+        "*.shapedb": "jsonc",
+        "*.rotationset": "jsonc",
+        "*.rend": "jsonc",
+        "*.effectset": "jsonc",
+        "*.tooldb": "jsonc",
+        "*.toolset": "jsonc",
+        "*.scmf": "jsonc",
+        "*.lua.template": "lua"
+    }
+}
