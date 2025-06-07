@@ -1,35 +1,107 @@
 ---@diagnostic disable: missing-return, duplicate-set-field
 
----Class for events
+--#region WS
+
+---WS module
+---@class ws
+local ws = {}
+
+---Init WS module
+function ws.Init() end
+
+---Update WS module
+---@param deltaTime number
+function ws.Update(deltaTime) end
+
+---Handle error
+---@param err string
+function ws.Error(err) end
+
+---Destroys WS module
+function ws.Destroy() end
+--#endregion
+
+
+--#region Task
+
+---Task class
+---@class Task
+local Task = {}
+
+---Returns task repeat delay (ticks)
+---@return integer
+function Task.GetRepeatDelay() end
+
+---Sets task repeat delay (ticks)
+---@param delay integer
+function Task.SetRepeatDelay(delay) end
+
+---Destroys the task
+function Task.Destroy() end
+
+---Calls callback after given delay
+---@param callback fun(deltaTime: number)
+---@param delay integer Delay (ticks)
+---@return Task
+function ws.RunDelayed(callback, delay) end
+
+---Calls callback every time after repeatDelay
+---@param callback fun(deltaTime: number)
+---@param repeatDelay integer? Repeat delay (ticks). Defaults to 1
+---@param delay integer? Task start delay (ticks)
+---@return Task
+function ws.RunRepeated(callback, repeatDelay, delay) end
+--#endregion
+
+--#region Connection
+
+---Connection class
+---@class Connection
+local Connection = {}
+
+---Destroys the connection
+function Connection.Destroy() end
+--#endregion
+
+--#region Event
+
+---Event class
 ---@class Event
----@field oneShot boolean?
----@field active boolean?
----@field updateDelay integer
----@field alive integer?
 local Event = {}
 
----@param ... any
+---Fires the event
 function Event.Fire(...) end
 
----@return boolean, ...
-function Event.fun() end
+---Connect the event
+---@param callback fun(...)
+---@return Connection
+function Event.Connect(callback) end
 
 ---Destroys the event
 function Event.Destroy() end
 
----Class for tasks
----@class Task
----@field repeatDelay number?
----@field delay number
----@field alive integer
----@field active boolean?
-local Task = {}
+---Fires when the return of function `fun` is true
+---@param callback fun()
+---@param fun fun(): boolean
+---@param oneShot boolean? Fire event once
+---@param updateDelay integer? Return checking delay (ticks). Defaults to 1
+---@return Event
+function ws.CreateEvent(callback, fun, oneShot, updateDelay) end
 
----@param deltaTime number
-function Task.Callback(deltaTime) end
+---Fires when the return of function `fun` is changed
+---@param callback fun(state: any)
+---@param fun fun(): state: any
+---@param oneShot boolean? Fire event once
+---@param updateDelay integer? Change checking delay (ticks). Defaults to 1
+---@return Event
+function ws.CreateChangeEvent(callback, fun, oneShot, updateDelay) end
+--#endregion
 
----Destroys the task
-function Task.Destroy() end
+--#region Tween
+
+---Class for tweens
+---@class Tween
+local Tween = {}
 
 ---@alias EasingType
 ---| "Linear"
@@ -46,99 +118,403 @@ function Task.Destroy() end
 ---| "Out"
 ---| "InOut"
 
----Class for tweens
----@class Tween
----@field Object any
----@field currentTime number
----@field Property string
----@field active boolean?
----@field Value any
----@field Duration integer
----@field EasingType EasingType
----@field EasingDirection EasingDirection
-local Tween = {}
-
----Destroys the tween
-function Tween.Destroy() end
-
 ---Starts the tween
 function Tween.Start() end
 
 ---Stops the tween
 function Tween.Stop() end
 
----@param a any
----@param b any
----@param t number
----@return any
-function Tween.fun(a, b, t) end
+---Destroys the tween
+function Tween.Destroy() end
 
----@class ws
----@field Version string Version of WS module
----@field events Event[]
----@field tasks Task[]
----@field guis Gui[]
-local ws = {}
-
----Calls callback when fun returns true
----
----If fun returns multiple values, these values will be transfered to callback arguments
----@param callback fun(...: any?)
----@param fun fun(): (boolean, ...: any?)
----@param oneShot boolean Fire event once, then destroy. Defaults to false
----@param updateDelay integer Fun calls delay (ticks)
----@overload fun(callback: fun(...: any?), fun: fun(): (boolean, ...: any?)): Event
----@overload fun(callback: fun(...: any?), fun: fun(): (boolean, ...: any?), oneShot: boolean): Event
----@return Event
-function ws.CreateEvent(callback, fun, oneShot, updateDelay) end
-
----Calls callback after given delay
----@param callback fun(deltaTime: number)
----@param delay integer Delay (ticks)
----@return Task
-function ws.RunDelayed(callback, delay) end
-
----Calls callback every time after repeatDelay
----@param callback fun(deltaTime: number)
----@param repeatDelay integer Repeat delay (ticks). Defaults to 1
----@param delay integer Task start delay (ticks)
----@overload fun(callback: fun(deltaTime: number)): Task
----@overload fun(callback: fun(deltaTime: number), repeatDelay: integer): Task
----@return Task
-function ws.RunRepeated(callback, repeatDelay, delay) end
-
----Tweens object's property to given value
----@param object any Object to tween
----@param property string Property to tween
----@param value any Target tweening value
----@param fun fun(a: any, b: any, t: number): any Lerping function. Will be applied to value
----@param duration integer Tweening time (ticks)
----@param easingType EasingType Easing type. Defaults to Linear
----@param easingDirection EasingDirection Easing direction. Defaults to In
----@overload fun(object: any, property: string, value: any, duration: integer, fun: fun(a: any, b: any, t: number): any): Tween
+---Interpolates value from `from` to `to`
+---@param callback fun(value: number) Tween callback
+---@param from number Tween from
+---@param to number Tween to
+---@param duration integer Tweening duration (ticks)
+---@param easingType EasingType? Easing type. Defaults to Linear
+---@param easingDirection EasingDirection? Easing direction. Defaults to In
 ---@return Tween
-function ws.CreateTween(object, property, value, duration, fun, easingType, easingDirection) end
+function ws.CreateTween(callback, from, to, duration, easingType, easingDirection) end
+--#endregion
+
+
+--#region GUI
+
+--#region GUI class
+
+---Gui class
+---@class Gui
+local Gui = {}
+
+---Returns GUI size
+---@return Vector2
+function Gui.GetSize() end
+
+---Returns the GUI display
+---@return Display
+function Gui.GetDisplay() end
+
+---Returns visibility of GUI
+---@return boolean
+function Gui.IsVisible() end
+
+---Sets visibility of GUI
+---@param visible boolean
+function Gui.SetVisibility(visible) end
+
+---Returns GUI update delay (ticks)
+---@return integer
+function Gui.GetUpdateDelay() end
+
+---Sets GUI update delay (ticks)
+---@param delay integer
+function Gui.SetUpdateDelay(delay) end
+
+---Returns background color of GUI
+---@return MultiColorTypeNonNil
+function Gui.GetBackground() end
+
+---Sets background color of GUI
+---@param background MultiColorTypeNonNil
+function Gui.SetBackground(background) end
+
+--Updates GUI
+function Gui.Update() end
+
+---Destroys GUI
+function Gui.Destroy() end
 
 ---Creates GUI
----@param display Display
----@param background MultiColorTypeNonNil
----@overload fun(display: Display): Gui
+---
+---If `display` not present, GUI will be created on first connected display
+---@param display Display?
+---@param background MultiColorType
 ---@return Gui
 function ws.CreateGUI(display, background) end
+--#endregion
 
----Updates WS module
----@param deltaTime number
-function ws.update(deltaTime) end
+--#region GuiComponent
 
----Error handler
----@param err string
-function ws.error(err) end
+---Base class for all GUI components
+---@class GuiComponent
+local GuiComponent = {}
 
----Destroys WS module
-function ws.Destroy() end
+---Returns actual size of GUI component
+---@return Vector2
+function GuiComponent.GetSize() end
+
+---Returns position of GUI component
+---@return Vector2
+function GuiComponent.GetPosition() end
+
+---Sets position of GUI component
+---@param position Vector2
+function GuiComponent.SetPosition(position) end
+
+---Returns visibility of GUI component
+---@return boolean
+function GuiComponent.IsVisible() end
+
+---Sets visibility of GUI component
+---@param visible boolean
+function GuiComponent.SetVisibility(visible) end
+
+---Returns ZIndex of GUI component
+---@return integer
+function GuiComponent.GetZIndex() end
+
+---Sets ZIndex of GUI component
+---@param zIndex integer
+function GuiComponent.SetZIndex(zIndex) end
+
+---Destroys GUI component
+function GuiComponent.Destroy() end
+--#endregion
+
+--#region AnchoredGuiComponent
+
+---Base class for anchored GUI components
+---@class AnchoredGuiComponent: GuiComponent
+local AnchoredGuiComponent = {}
+
+---@alias GuiAnchor
+---| "TopLeft"
+---| "Top"
+---| "TopRight"
+---| "Left"
+---| "Center"
+---| "Right"
+---| "BottomLeft"
+---| "Bottom"
+---| "BottomRight"
+
+---Returns anchor of GUI component
+---@return GuiAnchor
+function AnchoredGuiComponent.GetAnchor() end
+
+---Sets anchor of GUI component
+---@param anchor GuiAnchor
+function AnchoredGuiComponent.SetAnchor(anchor) end
+--#endregion
+
+--#region ColoredGuiComponent
+
+---Base class for GUI components with color
+---@class ColoredGuiComponent: GuiComponent
+local ColoredGuiComponent = {}
+
+---Returns color of GUI component
+---@return MultiColorTypeNonNil
+function ColoredGuiComponent.GetColor() end
+
+---Sets color of GUI component
+---@param color MultiColorTypeNonNil
+function ColoredGuiComponent.SetColor(color) end
+--#endregion
+
+--#region BorderedGuiComponent
+
+---Base class for GUI components with border
+---@class BorderedGuiComponent: AnchoredGuiComponent, ColoredGuiComponent
+local BorderedGuiComponent = {}
+
+---Returns border color of GUI component
+---@return MultiColorTypeNonNil
+function BorderedGuiComponent.GetBorderColor() end
+
+---Sets border color of GUI component
+---@param color MultiColorTypeNonNil
+function BorderedGuiComponent.SetBorderColor(color) end
+
+---Returns border thickness of GUI component
+---@return integer
+function BorderedGuiComponent.GetBorderThickness() end
+
+---Sets border thickness of GUI component
+---@param thickness integer
+function BorderedGuiComponent.SetBorderThickness(thickness) end
+--#endregion
+
+--#region GuiText
+
+---GuiText class
+---@class GuiText: AnchoredGuiComponent, ColoredGuiComponent
+local GuiText = {}
+
+---Returns text 
+---@return string
+function GuiText.GetText() end
+
+---Sets text
+---@param text string
+function GuiText.SetText(text) end
+
+---Creates text
+---@param text string
+---@param position Vector2
+---@param color MultiColorType
+---@param anchor GuiAnchor?
+---@return GuiText
+function Gui.CreateText(text, position, color, anchor) end
+--#endregion
+
+--#region GuiOutline
+
+---GuiOutline class
+---@class GuiOutline: AnchoredGuiComponent, ColoredGuiComponent
+local GuiOutline = {}
+
+---Sets size of GUI component
+---@param size Vector2
+function GuiOutline.SetSize(size) end
+
+---Creates rectangular outline
+---@param position Vector2
+---@param size Vector2
+---@param color MultiColorType
+---@param anchor GuiAnchor?
+---@return GuiOutline
+function Gui.CreateOutline(position, size, color, anchor) end
+--#endregion
+
+--#region GuiCircleOutline
+
+---GuiCircleOutline class
+---@class GuiCircleOutline: AnchoredGuiComponent, ColoredGuiComponent
+local GuiCircleOutline = {}
+
+---Returns radius of outline
+---@return integer
+function GuiCircleOutline.GetRadius() end
+
+---Sets radius of outline
+---@param radius integer
+function GuiCircleOutline.SetRadius(radius) end
+
+---Creates circle outline
+---@param position Vector2
+---@param radius integer
+---@param color MultiColorType
+---@param anchor GuiAnchor?
+---@return GuiCircleOutline
+function Gui.CreateCircleOutline(position, radius, color, anchor) end
+--#endregion
+
+--#region GuiLine
+
+---GuiLine class
+---@class GuiLine: ColoredGuiComponent
+local GuiLine = {}
+
+---Returns second point of line
+---@return Vector2
+function GuiLine.GetPosition2() end
+
+---Sets second point of line
+---@param position Vector2
+function GuiLine.SetPosition2(position) end
+
+---Creates line
+---@param position Vector2
+---@param position2 Vector2
+---@param color MultiColorType
+---@return GuiLine
+function Gui.CreateLine(position, position2, color) end
+--#endregion
+
+--#region GuiRect
+
+---GuiRect class
+---@class GuiRect: GuiOutline, BorderedGuiComponent
+local GuiRect = {}
+
+---Creates rectangle
+---@param position Vector2
+---@param size Vector2
+---@param color MultiColorType
+---@param anchor GuiAnchor?
+---@return GuiRect
+function Gui.CreateRect(position, size, color, anchor) end
+--#endregion
+
+--#region GuiCircle
+
+---GuiCircle class
+---@class GuiCircle: GuiCircleOutline, BorderedGuiComponent
+local GuiCircle = {}
+
+---Creates circle
+---@param position Vector2
+---@param radius integer
+---@param color MultiColorType
+---@param anchor GuiAnchor?
+---@return GuiCircle
+function Gui.CreateCircle(position, radius, color, anchor) end
+--#endregion
+
+--#region GuiImage
+
+---GuiImage class
+---@class GuiImage: AnchoredGuiComponent
+local GuiImage = {}
+
+---@class ImageData
+---@field Size integer[]
+---@field Pixels PixelTable
+
+---Returns image data
+---@return ImageData
+function GuiImage.GetImageData() end
+
+---Sets image data
+---@param imageData ImageData
+function GuiImage.SetImageData(imageData) end
+
+---Creates image
+---@param imageData ImageData
+---@param position Vector2
+---@param anchor GuiAnchor?
+---@return GuiImage
+function Gui.CreateImage(imageData, position, anchor) end
+--#endregion
+
+--#endregion
+
+
+--#region Utils
+
+--#region Math
+
+---Linear interpolation between two values
+---@param a number
+---@param b number
+---@param t number
+---@return number
+function math.lerp(a, b, t) end
+
+---Returns sign of a number
+---@param x number
+---@return -1|0|1
+function math.sign(x) end
+--#endregion
+
+--#region Table
+
+---Clones a table
+---@param table table
+---@return table
+function table.clone(table) end
+
+---Returns the index of the `value` in the `table`, otherwise return nil
+---@param table table
+---@param value any
+---@return any
+function table.find(table, value) end
+
+---Removes from `list` the element with `value`, returns true if success
+---@param list table
+---@param value any
+function table.removeValue(list, value) end
+
+---Merges lists to one list
+---@param ... table<integer, any>
+---@return table list
+function table.mergeLists(...) end
+
+---Merges tables to one table. The last one will overwrite the elements of the first ones
+---@param ... table
+---@return table
+function table.merge(...) end
+--#endregion
+
+--#region String
+
+---Separates a string `s` with separator `sep`
+---@param s string
+---@param sep string? Separator, defaults to `%s`
+---@return string[]
+function string.split(s, sep) end
+
+---Uppers first character of the string `s`
+---@param s string
+---@return string
+function string.capitalize(s) end
+
+---Removes escape characters on the sides of a string `s`
+---@param s string
+---@return string
+function string.strip(s) end
+--#endregion
+
+--#region Vector2
 
 ---2D Vector implementation
 ---@class Vector2Impl
+---@field zero Vector2 Vector2(0, 0)
+---@field xAxis Vector2 Vector2(1, 0)
+---@field yAxis Vector2 Vector2(0, 1)
+---@field one Vector2 Vector2(1, 1)
 ---@overload fun(x: number, y: number): Vector2
 ws.Vector2 = {}
 
@@ -176,9 +552,17 @@ function ws.Vector2.length(vec) end
 ---@param b Vector2
 ---@return number
 function ws.Vector2.angle(a, b) end
+--#endregion
+
+--#region Vector3
 
 ---3D Vector implementation
 ---@class Vector3Impl
+---@field zero Vector3 Vector3(0, 0, 0)
+---@field xAxis Vector3 Vector3(1, 0, 0)
+---@field yAxis Vector3 Vector3(0, 1, 0)
+---@field zAxis Vector3 Vector3(0, 0, 1)
+---@field one Vector3 Vector3(1, 1, 1)
 ---@overload fun(x: number, y: number, z: number): Vector3
 ws.Vector3 = {}
 
@@ -218,210 +602,11 @@ function ws.Vector3.length(vec) end
 ---@return number
 function ws.Vector3.angle(a, b) end
 
----@alias Anchor
----| "TopLeft"
----| "Top"
----| "TopRight"
----| "Left"
----| "Center"
----| "Right"
----| "BottomLeft"
----| "Bottom"
----| "BottomRight"
+---Returns cross product of two vectors
+---@param a Vector3
+---@param b Vector3
+---@return Vector3
+function ws.Vector3.cross(a, b) end
+--#endregion
 
----Base class for all GUI components
----@class BaseGuiComponent
----@field Position Vector2
----@field Visible boolean
----@field ZIndex integer
-local BaseGuiComponent = {}
-
----Destroys GUI Component
-function BaseGuiComponent.Destroy() end
-
----Sets the ZIndex of GuiComponent
----@param index integer
-function BaseGuiComponent.SetZIndex(index) end
-
----Updates and draws GUI Component
-function BaseGuiComponent.update() end
-
----Class for GUI components
----@class GuiComponent: BaseGuiComponent
----@field Color MultiColorTypeNonNil
----@field Anchor Anchor
-local GuiComponent = {}
-
----Returns actual size of GUI Component
----@return Vector2
-function GuiComponent.GetSize() end
-
----@class GuiText: GuiComponent
----@field Text string
-
----@class GuiOutline: GuiComponent
----@field Size Vector2
-
----@class GuiCircleOutline: GuiComponent
----@field Radius integer
-
----@class GuiRect: GuiOutline
----@field Border GuiBorder
-
----@class GuiLine: BaseGuiComponent
----@field Position2 Vector2
----@field Color MultiColorTypeNonNil
-
----@class GuiBorder
----@field Thickness integer
----@field Color MultiColorType
-
----@class GuiImage: BaseGuiComponent
----@field ImageData ImageData
----@field Anchor Anchor
-
----@class GuiCircle: GuiComponent
----@field Radius integer
----@field Border GuiBorder
-
----@class ImageData
----@field Size integer[]
----@field Pixels PixelTable
-
----GUI class
----@class Gui
----@field Visible boolean
----@field Display Display
----@field components GuiComponent[]
----@field Background MultiColorTypeNonNil
-local Gui = {}
-
----Creates text
----@param text string
----@param position Vector2
----@param anchor Anchor?
----@param color MultiColorType
----@overload fun(text: string, position): GuiText
----@overload fun(text: string, position, color: MultiColorTypeNonNil): GuiText
----@return GuiText
-function Gui.CreateText(text, position, color, anchor) end
-
----Creates rectangle
----@param position Vector2
----@param size Vector2
----@param anchor Anchor?
----@param color MultiColorType
----@param border GuiBorder
----@overload fun(position: Vector2, size: Vector2): GuiRect
----@overload fun(position: Vector2, size: Vector2, color: MultiColorTypeNonNil): GuiRect
----@overload fun(position: Vector2, size: Vector2, color: MultiColorType, anchor: Anchor): GuiRect
----@return GuiRect
-function Gui.CreateRect(position, size, color, anchor, border) end
-
----Creates rectangular outline
----@param position Vector2
----@param size Vector2
----@param anchor Anchor
----@param color MultiColorType
----@overload fun(position: Vector2, size: Vector2): GuiOutline
----@overload fun(position: Vector2, size: Vector2, color: MultiColorTypeNonNil): GuiOutline
----@return GuiOutline
-function Gui.CreateOutline(position, size, color, anchor) end
-
----Creates line
----@param position Vector2
----@param position2 Vector2
----@param color MultiColorTypeNonNil
----@overload fun(position, position2): GuiLine
----@return GuiLine
-function Gui.CreateLine(position, position2, color) end
-
----Creates image
----@param imageData ImageData
----@param position Vector2
----@param anchor Anchor
----@overload fun(imageData: ImageData, position): GuiImage
----@return GuiImage
-function Gui.CreateImage(imageData, position, anchor) end
-
----Creates circle
----@param position Vector2
----@param radius integer
----@param color MultiColorType
----@param anchor Anchor?
----@param border GuiBorder
----@overload fun(position, radius: integer): GuiCircle
----@overload fun(position, radius: integer, color: MultiColorTypeNonNil): GuiCircle
----@overload fun(position, radius: integer, color: MultiColorType, anchor: Anchor): GuiCircle
----@return GuiCircle
-function Gui.CreateCircle(position, radius, color, anchor, border) end
-
----Creates circle outline
----@param position Vector2
----@param radius integer
----@param color MultiColorType
----@param anchor Anchor
----@overload fun(position, radius: integer)
----@overload fun(position, radius: integer, color: MultiColorTypeNonNil): GuiCircleOutline
----@return GuiCircleOutline
-function Gui.CreateCircleOutline(position, radius, color, anchor) end
-
----Returns GUI size
----@return Vector2
-function Gui.GetSize() end
-
----Updates GUI
-function Gui.update() end
-
----Destroys GUI
-function Gui.Destroy() end
-
----Linear interpolation between two values
----@param a number
----@param b number
----@param t number
----@return number
-function math.lerp(a, b, t) end
-
----Returns sign of a number
----@param x number
----@return -1|0|1
-function math.sign(x) end
-
----Clones a table
----@param table table
----@return table
-function table.clone(table) end
-
----Returns the index of the value in the table, otherwise return nil
----@param table table
----@param value any
----@return any
-function table.find(table, value) end
-
----Merges lists to one list
----@param ... table<integer, any>
----@return table
-function table.mergeLists(...) end
-
----Merges tables to one table. The last one will overwrite the elements of the first ones
----@param ... table
----@return table
-function table.merge(...) end
-
----Separates a string using a separator
----@param s string
----@param sep string Separator, defaults to %s
----@overload fun(s: string): string[]
----@return string[]
-function string.split(s, sep) end
-
----Uppers first character of the string
----@param s string
----@return string
-function string.capitalize(s) end
-
----Removes escape characters on the sides of a string
----@param s string
----@return string
-function string.strip(s) end
+--#endregion

@@ -1,17 +1,16 @@
----WS Library
 ---@class ws
-local ws = { Version = "0.2", events = {}, tasks = {}, guis = {}, tweens = {} }
+local ws = {}
 
 ---On load
-function onLoad() end
+function onLoad() ws.Init() end
 
 ---On update
 ---@param deltaTime number
-function onUpdate(deltaTime) ws.update(deltaTime) end
+function onUpdate(deltaTime) ws.Update(deltaTime) end
 
 ---On error
 ---@param err string
-function onError(err) ws.error(err) end
+function onError(err) ws.Error(err) end
 
 ---On reload
 function onReload() onDestroy() end
@@ -23,105 +22,108 @@ function onDestroy() ws.Destroy() end
 ---@diagnostic disable: duplicate-set-field, redundant-parameter
 --stylua: ignore start
 
-function ws.CreateEvent(callback, fun, oneShot, updateDelay) --[[@return Event]]
-	local event = { Fire = callback, fun = fun, oneShot = oneShot, updateDelay = updateDelay or 1 }
-	function event.Destroy() table.remove(ws.events, table.find(ws.events, event)) end; table.insert(ws.events, event); return event; end
-function ws.RunDelayed(callback, delay) --[[@return Task]]
-	local task = { Callback = callback, delay = delay, alive = 0 }
-	function task.Destroy() table.remove(ws.tasks, table.find(ws.tasks, task)) end; table.insert(ws.tasks, task); return task; end
-function ws.RunRepeated(callback, repeatDelay, delay) --[[@return Task]]
-	local task = { Callback = callback, alive = 0, delay = delay or 0, repeatDelay = repeatDelay or 1 }
-	function task.Destroy() table.remove(ws.tasks, table.find(ws.tasks, task)) end; table.insert(ws.tasks, task); return task; end
-function ws.CreateTween(object, property, value, duration, fun, easingType, easingDirection) --[[@return Tween]]
-	local tween = { Object = object, Property = property, startValue = object[property], Value = value, Duration = duration, fun = fun, EasingType = easingType or "Linear", EasingDirection = easingDirection or "In", currentTime = 0 }
-	function tween.Destroy() table.remove(ws.tweens, table.find(ws.tweens, tween)) end; function tween.Pause() tween.active = false end; function tween.Start() tween.active = true end
-	table.insert(ws.tweens, tween); return tween; end
-function ws.CreateGUI(display, background) --[[@return Gui]]
-	local gui = { Display = display, components = {}, Visible = true, Background = background or "000000" }
-	local function applyGetSizeFunction(component) function component.GetSize() return component.Size end end
-	local anchors = { TopLeft = ws.Vector2(0, 0), Top = ws.Vector2(0.5, 0), TopRight = ws.Vector2(1, 0), Left = ws.Vector2(0, 0.5), Center = ws.Vector2(0.5, 0.5), Right = ws.Vector2(1, 0.5), BottomLeft = ws.Vector2(0, 1), Bottom = ws.Vector2(0.5, 1), BottomRight = ws.Vector2(1, 1) }
-	local function applyAnchor(component) return component.Position - component.GetSize() * anchors[component.Anchor] end
-	local function createBaseComponent(component) component = table.merge(component, { Visible = true, ZIndex = 1 }); function component.Destroy() table.remove(gui.components, table.find(gui.components, component)) end; function component.SetZIndex(index) component.ZIndex = index; table.sort(gui.components, function(a, b) return a.ZIndex < b.ZIndex end) end return component end
-	function gui.CreateText(text, position, color, anchor)
-		local component = createBaseComponent({ Text = text, Position = position, Color = color or "ffffff", Anchor = anchor or "TopLeft" })
-		function component.GetSize() return ws.Vector2(gui.Display.calcTextSize(component.Text)) end
-		function component.update() local pos = applyAnchor(component); gui.Display.drawText(pos.x, pos.y, component.Text, component.Color) end
-		table.insert(gui.components, component); return component; end
-	function gui.CreateRect(position, size, color, anchor, border)
-		local component = createBaseComponent({ Position = position, Size = size, Color = color or "ffffff", Anchor = anchor or "TopLeft", Border = border and { Thickness = border.Thickness, Color = border.Color or "000000" } })
-		applyGetSizeFunction(component)
-		function component.update()
-			local border = component.Border; local pos = applyAnchor(component)
-			if border then gui.Display.drawFilledRect(pos.x - border.Thickness, pos.y - border.Thickness, component.Size.x + border.Thickness * 2, component.Size.y + border.Thickness * 2, border.Color) end
-			gui.Display.drawFilledRect(pos.x, pos.y, component.Size.x, component.Size.y, component.Color); end
-		table.insert(gui.components, component); return component; end
-	function gui.CreateOutline(position, size, color, anchor)
-		local component = createBaseComponent({ Position = position, Size = size, Color = color or "ffffff", Anchor = anchor or "TopLeft" })
-		applyGetSizeFunction(component)
-		function component.update() local pos = applyAnchor(component); gui.Display.drawRect(pos.x, pos.y, component.Size.x, component.Size.y, component.Color) end
-		table.insert(gui.components, component); return component; end
-	function gui.CreateLine(position, position1, color)
-		local component = createBaseComponent({ Position = position, Position1 = position1, Color = color or "ffffff" })
-		function component.update() gui.Display.drawLine(component.Position.x, component.Position.y, component.Position1.x, component.Position1.y, component.Color) end
-		function component.GetSize() return math.max(component.Position.x, component.Position1.x) - math.min(component.Position.x, component.Position1.x), math.max(component.Position.y, component.Position1.y) - math.min(component.Position.y, component.Position1.y) end
-		table.insert(gui.components, component); return component; end
-	function gui.CreateImage(imageData, position, anchor)
-		local component = createBaseComponent({ Position = position, ImageData = imageData, Anchor = anchor or "TopLeft" })
-		local pixels = {}
-		local function rePosition()
-			local x, y = applyAnchor(component); for _, v in pairs(component.ImageData.Pixels) do table.insert(pixels, { x = (v.x + x) or 0, y = (v.y + y) or 0, color = v.color }) end
-		end; rePosition()
-		function component.GetSize() return ws.Vector2(unpack(component.ImageData.Size)) end
-		function component.update() gui.Display.drawFromTable(pixels) end
-		table.insert(gui.components, component); return component; end
-	function gui.CreateCircle(position, radius, color, anchor, border)
-		local component = createBaseComponent({ Position = position, Radius = radius, Color = color or "ffffff", Anchor = anchor or "TopLeft", Border = border and { Thickness = border.Thickness, Color = border.Color or "000000" } })
-		function component.GetSize() return ws.Vector2(component.Radius * 2, component.Radius * 2) end
-		function component.update() local border = component.Border; local pos = applyAnchor(component)
-			if border then gui.Display.drawFilledCircle(pos.x + component.Radius, pos.y + component.Radius, component.Radius + border.Thickness, border.Color) end
-			gui.Display.drawFilledCircle(pos.x + component.Radius, pos.y + component.Radius, component.Radius, component.Color); end
-		table.insert(gui.components, component); return component; end
-	function gui.CreateCircleOutline(position, radius, color, anchor)
-		local component = createBaseComponent({ Position = position, Radius = radius, Color = color or "ffffff", Anchor = anchor or "TopLeft" })
-		function component.GetSize() return ws.Vector2(component.Radius * 2, component.Radius * 2) end
-		function component.update() local pos = applyAnchor(component); gui.Display.drawCircle(pos.x + component.Radius, pos.y + component.Radius, component.Radius, component.Color) end
-		table.insert(gui.components, component); return component; end
-	function gui.GetSize() return ws.Vector2(gui.Display.getDimensions()) end
-	function gui.update() gui.Display.clear(gui.Background); for _, v in pairs(gui.components) do if v.Visible then v.update() end end; gui.Display.update() end
-	function gui.Destroy() gui.Display.clear(); gui.Display.update(); table.remove(ws.guis, table.find(ws.guis, gui)) end
-	table.insert(ws.guis, gui); return gui; end
-do local meta = { __unm = function(a) return ws.Vector2(-a.x, -a.y) end, __add = function(a, b) return ws.Vector2(a.x + b.x, a.y + b.y) end, __sub = function(a, b) return ws.Vector2(a.x - b.x, a.y - b.y) end, __mul = function(a, b) if type(b) == "number" then b = ws.Vector2(b, b) end; return ws.Vector2(a.x * b.x, a.y * b.y) end, __div = function(a, b) if type(b) == "number" then b = ws.Vector2(b, b) end; return ws.Vector2(a.x / b.x, a.y / b.y) end, __eq = function(a, b) return a.x == b.x and a.y == b.y end }
-	ws.Vector2 = setmetatable({}, { __call = function(_, x, y) local t = table.clone(ws.Vector2 --[[@as table]]); t.x = x or 0; t.y = y or 0; return setmetatable(t, meta) end }) --[[@class Vector2Impl]]
-	function ws.Vector2.lerp(a, b, t) return ws.Vector2(math.lerp(a.x, b.x, t), math.lerp(a.y, b.y, t)) end
-	function ws.Vector2.length(vec) return math.sqrt(math.pow(vec.x, 2) + math.pow(vec.y, 2)) end
-	function ws.Vector2.angle(a, b) return a * b / (a:length() * b:length()) end
-	function ws.Vector2.dot(a, b) return a * b end end
-do local meta = { __unm = function(a) return ws.Vector3(-a.x, -a.y, -a.z) end, __add = function(a, b) return ws.Vector3(a.x + b.x, a.y + b.y, a.z + b.z) end, __sub = function(a, b) return ws.Vector3(a.x - b.x, a.y - b.y, a.z - b.z) end, __mul = function(a, b) if type(b) == "number" then b = ws.Vector3(b, b, b) end; return ws.Vector3(a.x * b.x, a.y * b.y, a.z * b.z) end, __div = function(a, b) if type(b) == "number" then b = ws.Vector3(b, b, b) end; return ws.Vector3(a.x / b.x, a.y / b.y, a.z / b.z) end, __eq = function(a, b) return a.x == b.x and a.y == b.y and a.z == b.z end }
-	ws.Vector3 = setmetatable({}, { __call = function(_, x, y, z) local t = table.clone(ws.Vector3 --[[@as table]]); t.x = x or 0; t.y = y or 0; t.z = z or 0; return setmetatable(t, meta) end }) --[[@class Vector3Impl]]
-	function ws.Vector3.lerp(a, b, t) return ws.Vector3(math.lerp(a.x, b.x, t), math.lerp(a.y, b.y, t), math.lerp(a.z, b.z, t)) end
-	function ws.Vector3.length(vec) return math.sqrt(math.pow(vec.x, 2) + math.pow(vec.y, 2) + math.pow(vec.z, 2)) end
-	function ws.Vector3.angle(a, b) return a * b / (a:length() * b:length()) end
-	function ws.Vector3.dot(a, b) return a * b end end
-function ws.update(deltaTime)
-	for _, task in pairs(ws.tasks) do task.alive = task.alive + deltaTime * 40; if task.active then if task.alive >= task.repeatDelay then task.Callback(deltaTime); task.alive = 0 end elseif task.alive >= task.delay then task.Callback(deltaTime); if task.repeatDelay == nil then task.Destroy() else task.alive = 0; task.active = true end; end; end
-	for _, event in pairs(ws.events) do if event.alive ~= nil then event.alive = event.alive + deltaTime * 40 end
-		if event.alive == nil or event.alive >= event.updateDelay then local args = { event.fun() }; if args[1] then if not event.active then event.Fire(select(2, unpack(args))); if event.oneShot then event.Destroy(); else event.active = true end end else event.active = false end; event.alive = 0; end; end
-	for _, tween in pairs(ws.tweens) do if tween.active then tween.currentTime = tween.currentTime + deltaTime * 40; tween.Object[tween.Property] = tween.fun(tween.startValue, tween.Value, sm.util.easing(tween.EasingType == "Linear" and "linear" or ("ease" .. tween.EasingDirection .. tween.EasingType), math.min(tween.currentTime / tween.Duration, 1))); if tween.currentTime >= tween.Duration then tween.Destroy() end end end
-	for _, gui in pairs(ws.guis) do if gui.Visible then gui.update() end end end
-function ws.error(err)
-	local args = string.split(err, ":"); local msg, line = string.capitalize(string.strip(args[#args])), args[#args - 3]
-	for _, v in pairs(sc.getDisplays()) do local gui = ws.CreateGUI(v); local size = gui.GetSize(); local ew, eh = v.calcTextSize(msg); gui.CreateRect(size / 2 + ws.Vector2(1, -20), ws.Vector2(ew + 10, eh * 3 + 5), "ff5555", "Center"); gui.CreateText("Error!", size / 2 - ws.Vector2(0, 20 + eh), nil, "Center"); gui.CreateText(msg, size / 2 + ws.Vector2(1, -20), nil, "Center"); gui.CreateText("Line: " .. tostring(line), size / 2 + ws.Vector2(0, eh - 20), nil, "Center")
-		local rw, rh = v.calcTextSize("Restart needed"); gui.CreateRect(ws.Vector2(size.x / 2, size.y - 20 + 5), ws.Vector2(rw + 10, rh + 10), "ff5555", "Bottom"); gui.CreateText("Restart needed", ws.Vector2(size.x / 2, size.y - 20), nil, "Bottom"); gui.update(); end
+function ws.Init() ws.Version = "0.3"; ws.tasks = {}; ws.guis = {} end
+function ws.Update(deltaTime) for _, task in pairs(ws.tasks) do task.alive = task.alive + deltaTime * 40; if task.active then if task.alive >= task.repeatDelay then task.callback(deltaTime); task.alive = 0 end elseif task.alive >= task.delay then task.callback(deltaTime); if task.repeatDelay == nil then task.destroy() else task.alive = 0; task.active = true end end end end
+function ws.Error(err) local args = string.split(err, ":"); local msg, line = string.capitalize(string.strip(args[#args])), args[#args - 3]
+	for _, v in pairs(sc.getDisplays()) do local gui = ws.CreateGUI(v); local msgLabel = gui.CreateText(msg, gui.GetSize() / 2 - ws.Vector2.yAxis * 15, "ffffff", "Center")
+		gui.CreateText("Error!", msgLabel.GetPosition() - msgLabel.GetSize() * ws.Vector2.yAxis, "ffffff", "Center"); gui.CreateText("Line: " .. tostring(line), msgLabel.GetPosition() + msgLabel.GetSize() * ws.Vector2.yAxis, "ffffff", "Center")
+		gui.CreateRect(msgLabel.GetPosition(), msgLabel.GetSize() * ws.Vector2(1, 3) + ws.Vector2(10, 5), "ff5555", "Center").SetZIndex(0)
+		local restartLabel = gui.CreateText("Restart needed", gui.GetSize() * ws.Vector2(0.5, 0.9), "ffffff", "Bottom"); gui.CreateRect(restartLabel.GetPosition() + ws.Vector2.yAxis * 5, restartLabel.GetSize() + ws.Vector2.one * 10, "ff5555", "Bottom").SetZIndex(0); gui.Update() end
 	for _, v in pairs(sc.getTerminals()) do v.send(string.format("\n-- Error --\n%s\nLine: %d\n\nRestart needed\n", msg, line)) end end
-function ws.Destroy() for _, v in pairs(table.mergeLists(ws.events, ws.tasks, ws.guis)) do v.Destroy() end end
+function ws.Destroy() for _, v in pairs(table.mergeLists(ws.tasks, ws.guis)) do v.destroy() end end
+function ws.RunDelayed(callback, delay) --[[@return Task]]
+	local _task = { callback = callback, delay = delay, alive = 0 }; table.insert(ws.tasks, _task)
+	local Task = { GetRepeatDelay = nil, SetRepeatDelay = nil, Destroy = function() table.removeValue(ws.tasks, _task) end } --[[@as Task]]; _task.destroy = Task.Destroy; return Task end
+function ws.RunRepeated(callback, repeatDelay --[[@param repeatDelay integer?]], delay --[[@param delay integer?]]) --[[@return Task]]
+	local _task = { callback = callback, repeatDelay = repeatDelay or 1, delay = delay or 0, alive = 0 }; table.insert(ws.tasks, _task)
+	local Task = { GetRepeatDelay = function() return _task.repeatDelay end, SetRepeatDelay = function(delay) _task.repeatDelay = delay end, Destroy = function() table.removeValue(ws.tasks, _task) end } --[[@as Task]]; _task.destroy = Task.Destroy; return Task end
+function ws.CreateEvent(callback, fun, oneShot --[[@param oneShot boolean?]], updateDelay --[[@param updateDelay integer?]]) --[[@return Event]]
+	local task; local connections, active = {}, false
+	local Event = { Fire = function() for _, v in connections do v() end end, Connect = function(callback) table.insert(connections, callback) end, Destroy = function() connections = nil; task.Destroy() end } --[[@as Event]]
+	task = ws.RunRepeated(function() if fun() then if not active then Event.Fire(); if oneShot then Event.Destroy() else active = true end end else active = false end end, updateDelay or 1); return Event end
+function ws.CreateChangeEvent(callback, fun, oneShot --[[@param oneShot boolean?]], updateDelay --[[@param updateDelay integer?]]) --[[@return Event]]
+	local task; local connections, lastState = {}, fun()
+	local Event = { Fire = function(state) for _, v in connections do v(state) end end, Connect = function(callback) table.insert(connections, callback) end, Destroy = function() connections = nil; task.Destroy() end } --[[@as Event]]
+	task = ws.RunRepeated(function() local state = fun(); if state ~= lastState then Event.Fire(state) if oneShot then Event.Destroy() else lastState = state end end end, updateDelay or 1); return Event end
+function ws.CreateTween(callback, from, to, duration, easingType --[[@param easingType EasingType?]], easingDirection --[[@param easingDirection EasingDirection?]]) --[[@return Tween]]
+	local task; local currentTime, active = 0, false
+	local Tween = { Start = function() active = true end, Stop = function() active = false end, Destroy = function() task.Destroy() end } --[[@as Tween]]
+	task = ws.RunRepeated(function(deltaTime) if active then currentTime = currentTime + deltaTime * 40; callback(math.lerp(from, to, sm.util.easing(easingType == "Linear" and "linear" or ("ease" .. easingDirection .. easingType), math.min(currentTime / duration, 1)))); if currentTime >= duration then Tween.Destroy() end end end); return Tween end
+function ws.CreateGUI(display --[[@param display Display?]], background --[[@param background MultiColorType]]) --[[@return Gui]] display, background = display or sc.getDisplays()[1], background or "000000"; local task, _gui; local visibility, components = true, {}
+	local anchors = { TopLeft = ws.Vector2(0, 0), Top = ws.Vector2(0.5, 0), TopRight = ws.Vector2(1, 0), Left = ws.Vector2(0, 0.5), Center = ws.Vector2(0.5, 0.5), Right = ws.Vector2(1, 0.5), BottomLeft = ws.Vector2(0, 1), Bottom = ws.Vector2(0.5, 1), BottomRight = ws.Vector2(1, 1) }
+	local function getAnchoredPosition(component --[[@param component AnchoredGuiComponent]]) return component.GetPosition() - component.GetSize() * anchors[component.GetAnchor()] end
+	local function getBaseGuiComponent(component) return table.merge({ visible = true, zIndex = 1 }, component) end
+	local function getBaseAnchoredComponent(component) return table.merge({ anchor = "TopLeft" }, component) end
+	local function getBaseColoredComponent(component) return table.merge({ color = "ffffff" }, component) end
+	local function getBaseBorderedComponent(component) return table.merge({ borderColor = "555555", borderThickness = 0 }, component) end
+	local function createGuiComponent(component, replace) return table.merge({ GetSize = function() return component.size end, GetPosition = function() return component.position end, SetPosition = function(position) component.position = position end, IsVisible = function() return component.visible end, SetVisibility = function(visible) component.visible = visible end, GetZIndex = function() return component.zIndex end, SetZIndex = function(zIndex) component.zIndex = zIndex; table.sort(components, function(a, b) return a.zIndex < b.zIndex end) end, Destroy = function() table.removeValue(components, component) end }, replace or {}) end
+	local function createAnchoredComponent(component, replace) return table.merge({ GetAnchor = function() return component.anchor end }, replace or {}) end
+	local function applyAnchor(t, component --[[@param component AnchoredGuiComponent]]) component.SetAnchor = function(anchor) t.anchor = anchor; t.absolutePosition = getAnchoredPosition(component) + ws.Vector2(1, 1) end; component.SetAnchor(t.anchor) end
+	local function createColoredComponent(component, replace) return table.merge({ GetColor = function() return component.color end, SetColor = function(color) component.color = color end }, replace or {}) end
+	local function createBorderedComponent(component, replace) return table.merge({ GetBorderColor = function() return component.borderColor end, SetBorderColor = function(color) component.borderColor = color end, GetBorderThickness = function() return component.borderThickness end, SetBorderThickness = function(thickness) component.borderThickness = thickness end }, replace or {}) end
+	local Gui = { GetSize = function() return ws.Vector2(display.getDimensions()) end, GetDisplay = function() return display end, IsVisible = function() return visibility end, SetVisibility = function(visible) visibility = visible end, GetUpdateDelay = function() return task.GetRepeatDelay() end, SetUpdateDelay = function(delay) task.SetRepeatDelay(delay) end,
+		GetBackground = function() return background end, SetBackground = function(background) background = background end, Update = function() display.clear(background); for _, v in pairs(components) do v.update() end; display.update() end, Destroy = function() task.Destroy(); display.clear(); display.update(); table.removeValue(ws.guis, _gui) end,
+		CreateText = function(text, position, color, anchor)
+			local component = getBaseGuiComponent(getBaseAnchoredComponent(getBaseColoredComponent({ text = text, position = position, color = color, anchor = anchor })))
+			local GuiText = createGuiComponent(component, createAnchoredComponent(component, createColoredComponent(component, { GetSize = function() return ws.Vector2(display.calcTextSize(component.text)) + ws.Vector2.xAxis end, GetText = function() return component.text end, SetText = function(text) component.text = text end })))
+			component.update = function() display.drawText(component.absolutePosition.x, component.absolutePosition.y, component.text, component.color) end; applyAnchor(component, GuiText); table.insert(components, component); return GuiText end,
+		CreateOutline = function(position, size, color, anchor)
+			local component = getBaseGuiComponent(getBaseAnchoredComponent(getBaseColoredComponent({ position = position, size = size, color = color, anchor = anchor })))
+			local GuiOutline = createGuiComponent(component, createAnchoredComponent(component, createColoredComponent(component)))
+			component.update = function() display.drawRect(component.absolutePosition.x, component.absolutePosition.y, component.size.x, component.size.y, component.color) end; applyAnchor(component, GuiOutline); table.insert(components, component); return GuiOutline end,
+		CreateCircleOutline = function(position, radius, color, anchor)
+			local component = getBaseGuiComponent(getBaseAnchoredComponent(getBaseColoredComponent({ position = position, radius = radius, color = color, anchor = anchor })))
+			local GuiCircleOutline = createGuiComponent(component, createAnchoredComponent(component, createColoredComponent(component, { GetSize = function() return ws.Vector2(component.radius * 2, component.radius * 2) end, GetRadius = function() return component.radius end, SetRadius = function(radius) component.radius = radius end })))
+			component.update = function() display.drawCircle(component.absolutePosition.x, component.absolutePosition.y, component.radius, component.color) end; applyAnchor(component, GuiCircleOutline); table.insert(components, component); return GuiCircleOutline end,
+		CreateLine = function(position, position2, color)
+			local component = getBaseGuiComponent(getBaseColoredComponent({ position = position, position2 = position2, color = color }))
+			local GuiLine = createGuiComponent(component, createColoredComponent(component, { GetPosition2 = function() return component.position2 end, SetPosition2 = function(position) component.position2 = position end }))
+			component.update = function() display.drawLine(component.position.x, component.position.y, component.position2.x, component.position2.y, component.color) end; table.insert(components, component); return GuiLine end,
+		CreateRect = function(position, size, color, anchor)
+			local component = getBaseGuiComponent(getBaseAnchoredComponent(getBaseColoredComponent(getBaseBorderedComponent({ position = position, size = size, color = color, anchor = anchor }))))
+			local GuiRect = createGuiComponent(component, createAnchoredComponent(component, createColoredComponent(component, createBorderedComponent(component, { SetSize = function(size) component.size = size end }))))
+			component.update = function() if component.borderThickness > 0 then display.drawFilledRect(component.absolutePosition.x - component.borderThickness, component.absolutePosition.y - component.borderThickness, component.size.x + component.borderThickness, component.size.y + component.borderThickness, component.borderColor) end; display.drawFilledRect(component.absolutePosition.x, component.absolutePosition.y, component.size.x, component.size.y, component.color) end; applyAnchor(component, GuiRect); table.insert(components, component); return GuiRect end,
+		CreateCircle = function(position, radius, color, anchor)
+			local component = getBaseGuiComponent(getBaseAnchoredComponent(getBaseColoredComponent(getBaseBorderedComponent({ position = position, radius = radius, color = color, anchor = anchor }))))
+			local GuiCircle = createGuiComponent(component, createAnchoredComponent(component, createColoredComponent(component, createBorderedComponent(component, { GetSize = function() return ws.Vector2(component.radius * 2, component.radius * 2) end, GetRadius = function() return component.radius end, SetRadius = function(radius) component.radius = radius end }))))
+			component.update = function() if component.borderThickness > 0 then display.drawFilledCircle(component.absolutePosition.x, component.absolutePosition.y, component.radius + component.borderThickness, component.borderColor) end; display.drawFilledCircle(component.absolutePosition.x, component.absolutePosition.y, component.radius, component.color) end; applyAnchor(component, GuiCircle); table.insert(components, component); return GuiCircle end,
+		CreateImage = function(imageData, position, anchor)
+			local component = getBaseGuiComponent(getBaseAnchoredComponent({ imageData = imageData, position = position, anchor = anchor }))
+			local GuiImage = createGuiComponent(component, createAnchoredComponent(component, { GetSize = function() return ws.Vector2(0, 0) end, GetImageData = function() return component.imageData end, SetImageData = function() component.imageData = imageData end, SetPosition = function(position) component.position = position end }))
+			component.update = function() end
+			applyAnchor(component, GuiImage); table.insert(components, component); return GuiImage end, } --[[@as Gui]]
+	task = ws.RunRepeated(function() if Gui.IsVisible() then Gui.Update() end end); _gui = { destroy = Gui.Destroy }; table.insert(ws.guis, _gui); return Gui end
 function math.lerp(a, b, t) return sm.util.lerp(a, b, t) end
 function math.sign(x) return x < 0 and -1 or x > 0 and 1 or 0 end --[[@return -1|0|1]]
+function table.clone(table --[[@param table table]]) return sc.table.clone(table) end
 function table.find(table, value) for k, v in pairs(table) do if v == value then return k end end end --[[@return any]]
-function table.clone(table) return sc.table.clone(table) end --[[@param table table]]
-function table.mergeLists(...) local t = {}; for _, tb in pairs({ ... }) do for _, v in pairs(tb) do table.insert(t, v) end end; return t end --[[@param ... table<integer, any>]]
-function table.merge(...) local t = {}; for _, tb in pairs({ ... }) do for k, v in pairs(tb) do t[k] = v end end; return t end --[[@param ... table]]
-function string.split(s, sep) if sep == nil then sep = "%s" end; local t = {}; for str in s:gmatch("([^" .. sep .. "]+)") do table.insert(t, str) end; return t end --[[@return string[] ]]
+function table.removeValue(list --[[@param list table]], value) table.remove(list, table.find(list, value)) end
+function table.mergeLists(... --[[@param ... table<integer, any>]]) local t = {}; for _, tb in pairs({ ... }) do for _, v in pairs(tb) do table.insert(t, v) end end; return t end --[[@return table list]]
+function table.merge(... --[[@param ... table]]) local t = {}; for _, tb in pairs({ ... }) do for k, v in pairs(tb) do t[k] = v end end; return t end
+function string.split(s, sep --[[@param sep string?]]) if sep == nil then sep = "%s" end; local t = {}; for str in s:gmatch("([^" .. sep .. "]+)") do table.insert(t, str) end; return t end --[[@return string[] ]]
 function string.capitalize(s) return (s:gsub("^%l", string.upper)) end
 function string.strip(s) return (s:gsub("^%s+", ""):gsub("%s+$", "")) end
---stylua ignore end
+do local meta = { __unm = function(a) return ws.Vector2(-a.x, -a.y) end, __add = function(a, b) return ws.Vector2(a.x + b.x, a.y + b.y) end, __sub = function(a, b) return ws.Vector2(a.x - b.x, a.y - b.y) end, __mul = function(a, b) if type(b) == "number" then b = ws.Vector2(b, b) end; return ws.Vector2(a.x * b.x, a.y * b.y) end, __div = function(a, b) if type(b) == "number" then b = ws.Vector2(b, b) end; return ws.Vector2(a.x / b.x, a.y / b.y) end, __eq = function(a, b) return a.x == b.x and a.y == b.y end }
+	ws.Vector2 = setmetatable({}, { __call = function(_, x, y) local t = table.clone(ws.Vector2 --[[@as table]]); t.x = x or 0; t.y = y or 0; return setmetatable(t, meta) end }) --[[@class Vector2Impl]]
+	ws.Vector2.zero = ws.Vector2(0, 0)
+	ws.Vector2.xAxis = ws.Vector2(1, 0)
+	ws.Vector2.yAxis = ws.Vector2(0, 1)
+	ws.Vector2.one = ws.Vector2(1, 1)
+	function ws.Vector2.lerp(a, b, t) return ws.Vector2(math.lerp(a.x, b.x, t), math.lerp(a.y, b.y, t)) end
+	function ws.Vector2.dot(a, b) return a * b end
+	function ws.Vector2.length(vec) return math.sqrt(math.pow(vec.x, 2) + math.pow(vec.y, 2)) end
+	function ws.Vector2.angle(a, b) return a * b / (a:length() * b:length()) end end
+do local meta = { __unm = function(a) return ws.Vector3(-a.x, -a.y, -a.z) end, __add = function(a, b) return ws.Vector3(a.x + b.x, a.y + b.y, a.z + b.z) end, __sub = function(a, b) return ws.Vector3(a.x - b.x, a.y - b.y, a.z - b.z) end, __mul = function(a, b) if type(b) == "number" then b = ws.Vector3(b, b, b) end; return ws.Vector3(a.x * b.x, a.y * b.y, a.z * b.z) end, __div = function(a, b) if type(b) == "number" then b = ws.Vector3(b, b, b) end; return ws.Vector3(a.x / b.x, a.y / b.y, a.z / b.z) end, __eq = function(a, b) return a.x == b.x and a.y == b.y and a.z == b.z end }
+	ws.Vector3 = setmetatable({}, { __call = function(_, x, y, z) local t = table.clone(ws.Vector3 --[[@as table]]); t.x = x or 0; t.y = y or 0; t.z = z or 0; return setmetatable(t, meta) end }) --[[@class Vector3Impl]]
+	ws.Vector3.zero = ws.Vector3(0, 0, 0)
+	ws.Vector3.xAxis = ws.Vector3(1, 0, 0)
+	ws.Vector3.yAxis = ws.Vector3(0, 1, 0)
+	ws.Vector3.zAxis = ws.Vector3(0, 0, 1)
+	ws.Vector3.one = ws.Vector3(1, 1, 1)
+	function ws.Vector3.lerp(a, b, t) return ws.Vector3(math.lerp(a.x, b.x, t), math.lerp(a.y, b.y, t), math.lerp(a.z, b.z, t)) end
+	function ws.Vector3.dot(a, b) return a * b end
+	function ws.Vector3.length(vec) return math.sqrt(math.pow(vec.x, 2) + math.pow(vec.y, 2) + math.pow(vec.z, 2)) end
+	function ws.Vector3.angle(a, b) return a * b / (a:length() * b:length()) end
+	function ws.Vector3.cross(a, b) return ws.Vector3(a.y * a.z - a.z * b.y, a.z * b.y - a.x * b.z, a.x * b.y - a.y * b.x) end end
+--stylua: ignore end
 --#endregion
