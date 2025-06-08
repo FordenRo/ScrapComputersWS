@@ -4,6 +4,7 @@
 
 ---WS module
 ---@class ws
+---@field Version string WS module version
 local ws = {}
 
 ---Init WS module
@@ -59,8 +60,8 @@ function ws.RunRepeated(callback, repeatDelay, delay) end
 ---@class Connection
 local Connection = {}
 
----Destroys the connection
-function Connection.Destroy() end
+---Disconnects and destroys the connection
+function Connection.Disconnect() end
 --#endregion
 
 --#region Event
@@ -81,26 +82,25 @@ function Event.Connect(callback) end
 function Event.Destroy() end
 
 ---Fires when the return of function `fun` is true
----@param callback fun()
 ---@param fun fun(): boolean
 ---@param oneShot boolean? Fire event once
 ---@param updateDelay integer? Return checking delay (ticks). Defaults to 1
 ---@return Event
-function ws.CreateEvent(callback, fun, oneShot, updateDelay) end
+function ws.CreateEvent(fun, oneShot, updateDelay) end
 
 ---Fires when the return of function `fun` is changed
----@param callback fun(state: any)
 ---@param fun fun(): state: any
 ---@param oneShot boolean? Fire event once
 ---@param updateDelay integer? Change checking delay (ticks). Defaults to 1
 ---@return Event
-function ws.CreateChangeEvent(callback, fun, oneShot, updateDelay) end
+function ws.CreateChangeEvent(fun, oneShot, updateDelay) end
 --#endregion
 
 --#region Tween
 
 ---Class for tweens
 ---@class Tween
+---@field Ended Event
 local Tween = {}
 
 ---@alias EasingType

@@ -22,7 +22,7 @@ function onDestroy() ws.Destroy() end
 ---@diagnostic disable: duplicate-set-field, redundant-parameter
 --stylua: ignore start
 
-function ws.Init() ws.Version = "0.3"; ws.tasks = {}; ws.guis = {} end
+function ws.Init() ws.Version = "0.3.1"; ws.tasks = {}; ws.guis = {} end
 function ws.Update(deltaTime) for _, task in pairs(ws.tasks) do task.alive = task.alive + deltaTime * 40; if task.active then if task.alive >= task.repeatDelay then task.callback(deltaTime); task.alive = 0 end elseif task.alive >= task.delay then task.callback(deltaTime); if task.repeatDelay == nil then task.destroy() else task.alive = 0; task.active = true end end end end
 function ws.Error(err) local args = string.split(err, ":"); local msg, line = string.capitalize(string.strip(args[#args])), args[#args - 3]
 	for _, v in pairs(sc.getDisplays()) do local gui = ws.CreateGUI(v); local msgLabel = gui.CreateText(msg, gui.GetSize() / 2 - ws.Vector2.yAxis * 15, "ffffff", "Center")
@@ -37,17 +37,17 @@ function ws.RunDelayed(callback, delay) --[[@return Task]]
 function ws.RunRepeated(callback, repeatDelay --[[@param repeatDelay integer?]], delay --[[@param delay integer?]]) --[[@return Task]]
 	local _task = { callback = callback, repeatDelay = repeatDelay or 1, delay = delay or 0, alive = 0 }; table.insert(ws.tasks, _task)
 	local Task = { GetRepeatDelay = function() return _task.repeatDelay end, SetRepeatDelay = function(delay) _task.repeatDelay = delay end, Destroy = function() table.removeValue(ws.tasks, _task) end } --[[@as Task]]; _task.destroy = Task.Destroy; return Task end
-function ws.CreateEvent(callback, fun, oneShot --[[@param oneShot boolean?]], updateDelay --[[@param updateDelay integer?]]) --[[@return Event]]
+function ws.CreateEvent(fun, oneShot --[[@param oneShot boolean?]], updateDelay --[[@param updateDelay integer?]]) --[[@return Event]]
 	local task; local connections, active = {}, false
-	local Event = { Fire = function() for _, v in connections do v() end end, Connect = function(callback) table.insert(connections, callback) end, Destroy = function() connections = nil; task.Destroy() end } --[[@as Event]]
+	local Event = { Fire = function() for _, v in connections do v() end end, Connect = function(callback) table.insert(connections, callback); return { Disconnect = function() table.removeValue(connections, callback) end } --[[@as Connection]] end, Destroy = function() connections = nil; task.Destroy() end } --[[@as Event]]
 	task = ws.RunRepeated(function() if fun() then if not active then Event.Fire(); if oneShot then Event.Destroy() else active = true end end else active = false end end, updateDelay or 1); return Event end
-function ws.CreateChangeEvent(callback, fun, oneShot --[[@param oneShot boolean?]], updateDelay --[[@param updateDelay integer?]]) --[[@return Event]]
+function ws.CreateChangeEvent(fun, oneShot --[[@param oneShot boolean?]], updateDelay --[[@param updateDelay integer?]]) --[[@return Event]]
 	local task; local connections, lastState = {}, fun()
-	local Event = { Fire = function(state) for _, v in connections do v(state) end end, Connect = function(callback) table.insert(connections, callback) end, Destroy = function() connections = nil; task.Destroy() end } --[[@as Event]]
+	local Event = { Fire = function(state) for _, v in connections do v(state) end end, Connect = function(callback) table.insert(connections, callback); return { Disconnect = function() table.removeValue(connections, callback) end } --[[@as Connection]] end, Destroy = function() connections = nil; task.Destroy() end } --[[@as Event]]
 	task = ws.RunRepeated(function() local state = fun(); if state ~= lastState then Event.Fire(state) if oneShot then Event.Destroy() else lastState = state end end end, updateDelay or 1); return Event end
 function ws.CreateTween(callback, from, to, duration, easingType --[[@param easingType EasingType?]], easingDirection --[[@param easingDirection EasingDirection?]]) --[[@return Tween]]
 	local task; local currentTime, active = 0, false
-	local Tween = { Start = function() active = true end, Stop = function() active = false end, Destroy = function() task.Destroy() end } --[[@as Tween]]
+	local Tween = { Ended = ws.CreateEvent(function() return currentTime >= duration end, true), Start = function() active = true end, Stop = function() active = false end, Destroy = function() task.Destroy() end } --[[@as Tween]]
 	task = ws.RunRepeated(function(deltaTime) if active then currentTime = currentTime + deltaTime * 40; callback(math.lerp(from, to, sm.util.easing(easingType == "Linear" and "linear" or ("ease" .. easingDirection .. easingType), math.min(currentTime / duration, 1)))); if currentTime >= duration then Tween.Destroy() end end end); return Tween end
 function ws.CreateGUI(display --[[@param display Display?]], background --[[@param background MultiColorType]]) --[[@return Gui]] display, background = display or sc.getDisplays()[1], background or "000000"; local task, _gui; local visibility, components = true, {}
 	local anchors = { TopLeft = ws.Vector2(0, 0), Top = ws.Vector2(0.5, 0), TopRight = ws.Vector2(1, 0), Left = ws.Vector2(0, 0.5), Center = ws.Vector2(0.5, 0.5), Right = ws.Vector2(1, 0.5), BottomLeft = ws.Vector2(0, 1), Bottom = ws.Vector2(0.5, 1), BottomRight = ws.Vector2(1, 1) }
@@ -100,6 +100,10 @@ function table.find(table, value) for k, v in pairs(table) do if v == value then
 function table.removeValue(list --[[@param list table]], value) table.remove(list, table.find(list, value)) end
 function table.mergeLists(... --[[@param ... table<integer, any>]]) local t = {}; for _, tb in pairs({ ... }) do for _, v in pairs(tb) do table.insert(t, v) end end; return t end --[[@return table list]]
 function table.merge(... --[[@param ... table]]) local t = {}; for _, tb in pairs({ ... }) do for k, v in pairs(tb) do t[k] = v end end; return t end
+function table.pack(... --[[@param ... any]]) return { ... } end --[[@return table ]]
+---@generic T1, T2, T3, T4, T5, T6, T7, T8, T9, T10
+---@return T1, T2, T3, T4, T5, T6, T7, T8, T9, T10
+function table.unpack(list, i --[[@param i integer?]], j --[[@param j integer?]]) return unpack(list, i or 1, j or #list) end
 function string.split(s, sep --[[@param sep string?]]) if sep == nil then sep = "%s" end; local t = {}; for str in s:gmatch("([^" .. sep .. "]+)") do table.insert(t, str) end; return t end --[[@return string[] ]]
 function string.capitalize(s) return (s:gsub("^%l", string.upper)) end
 function string.strip(s) return (s:gsub("^%s+", ""):gsub("%s+$", "")) end
